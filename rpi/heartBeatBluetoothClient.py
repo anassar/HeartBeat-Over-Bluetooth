@@ -11,12 +11,11 @@ import struct
 ble = Adafruit_BluefruitLE.get_provider()
 
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_sock.connect(('', 12348))
+client_sock.connect(('', 12345))
 
 
 
 def handleMessage(msg):
-    print('Message: {0}'.format(msg))
     packer = struct.Struct('10s f f f')
     if (msg == 'TERMINATE'):
         return False
@@ -66,19 +65,24 @@ def getMessage(uart, leftover):
     while True:
         received = uart.read(timeout_sec=60)
         if received is not None:
+            #print "Received: " + received
             index = received.find("#") # Look up message termination
+            #print "Index: " + str(index)
             if index < 0:
                 msg = msg + received
             else:
                 if index > 0:
-                    msg = msg + received[0:index-1]
+                    msg = msg + received[0:index]
                 if len(received) > (index+1): # Termination is not last character
                     leftover = received[index+1:]
                 else:
                     leftover = ""
+                break
         else:
             # Timeout waiting for data, None is returned.
             print('Received no data!')
+    #print "Message: " + msg
+    #print "Leftover: " + leftover
     return (msg, leftover)
 
 
@@ -146,7 +150,8 @@ def main():
     finally:
         # Make sure device is disconnected on exit.
         device.disconnect()
-        values = ('TERMINATE:', 0.0)
+        values = ('TERMINATE:', 0.0, 0.0, 0.0)
+        packer = struct.Struct('10s f f f')
         packed_data = packer.pack(*values)
         client_sock.senda11(packed_data)
         client_sock.close()

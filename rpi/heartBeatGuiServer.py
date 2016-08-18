@@ -34,7 +34,7 @@ class App:
       self.DELTA_X    = 4
       self.SAMPLES    = self.RECT_X/self.DELTA_X
       self.LINE_WIDTH = 3
-      self.MAX_DATA   = 800.0
+      self.MAX_DATA   = 1.0
       self.NOISE      = 0.5
       self.bgColor    = "#2F4F2F"
       self.gridColor  = "#00FF00"
@@ -133,7 +133,7 @@ class App:
 WINDOW = 50
 SCALE  = 20.0
 
-def getReadings(client_socket):
+def getReadings(client_socket,app):
     unpacker = struct.Struct('10s f f f')
     movingAverage = deque([])
     for i in range(1, WINDOW+1):
@@ -153,16 +153,23 @@ def getReadings(client_socket):
         #for y in movingAverage:
         #   sumAll += y
         #avg = sumAll/WINDOW
-        if unpacked_data[0] == 'HEART:    ':
-           val = SCALE*(val1-self.average[0])
+        print "--- Sensor type: \"" + unpacked_data[0] + "\""
+        if unpacked_data[0] == "HEART:    ":
+           val = SCALE*(val1-app.average[0])
            app.putSamlpe( val, 0 )
-        elif unpacked_data[0] == 'ACCEL:    ':
-           val1 = SCALE*(val1-self.average[1])
-           val2 = SCALE*(val1-self.average[2])
-           val3 = SCALE*(val1-self.average[3])
+        elif unpacked_data[0] == "ACCEL:    ":
+           val1 = SCALE*(val1-app.average[1])
+           val2 = SCALE*(val1-app.average[2])
+           val3 = SCALE*(val1-app.average[3])
            app.putSamlpe( val1, 1 )
            app.putSamlpe( val2, 2 )
            app.putSamlpe( val3, 3 )
+        elif unpacked_data[0] == "MAG:      ":
+           pass
+        elif unpacked_data[0] == "STRETCH:  ":
+           pass
+        else:
+           print "*** Unknown sensor type"
 
 
 print '-------------------- Window Started'
@@ -172,13 +179,13 @@ app = App(root)
 
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#server_socket.bind((socket.gethostname(),12397))
-server_socket.bind(('',12348))
+#server_socket.bind((socket.gethostname(),12345))
+server_socket.bind(('',12345))
 server_socket.listen(5)
 
 # We expect one connection request.
 (client_socket, address) = server_socket.accept()
-t= threading.Thread(target=getReadings, args=(client_socket,))
+t= threading.Thread(target=getReadings, args=(client_socket,app))
 t.daemon=True
 t.start()
 
