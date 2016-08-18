@@ -15,8 +15,65 @@ ble = Adafruit_BluefruitLE.get_provider()
 
 ######################################################
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_sock.connect(('localhost', 12397))
+client_sock.connect(('', 12348))
 ######################################################
+
+
+
+
+def handleMessage(msg):
+    packer = struct.Struct('10s f')
+    # Received data, print it out.
+    #print('Received: {0}'.format(received))
+    if (msg == 'TERMINATE'):
+        break
+    if (msg.startswith('STRETCH:')):
+        stretchValue = msg[8:]
+        print 'Stretch value = ', stretchValue
+    elif (msg.startswith('ACCEL:')):
+        accelValue = msg[6:]
+        print 'Accelerometer value = ', accelValue
+    elif (msg.startswith('MAG:')):
+        magValue = msg[4:]
+        print 'Magentometer value = ', magValue
+    elif (msg.startswith('HEART:')):
+        heartValue = msg[6:]
+        print 'Heart-signal value = ', heartValue
+        #app.putSamlpe( heartValue )
+        #queue.put( heartValue )
+        values = ('HEART:    ', float(heartValue))
+        packed_data = packer.pack(*values)
+        client_sock.sendall(packed_data)
+    elif (msg.startswith('TEMP:')):
+        tempValue = msg[5:]
+        print 'Temperature value = ', tempValue
+    else:
+        print 'Unknown command = ', msg
+
+
+
+
+def getMessage(uart, received):
+    # Now wait up to one minute to receive data from the device.
+    #print('Waiting for next command from the device...')
+    msg = received
+    while True:
+        received = uart.read(timeout_sec=60)
+        if received is not None:
+            index = received.find("#")
+            if index < 0:
+                msg = msg + received
+            else:
+                if index > 0:
+                    msg = msg + received[0:index-1]
+                if len(received) > index:
+                    received = received[index+1:]
+                else:
+                    received = ""
+        else:
+            # Timeout waiting for data, None is returned.
+            print('Received no data!')
+    return (msg, received)
 
 
 
@@ -60,7 +117,6 @@ def main():
 
     # Once connected do everything else in a try/finally to make sure the device
     # is disconnected when done.
-    packer = struct.Struct('10s f')
     try:
         # Wait for service discovery to complete for the UART service.  Will
         # time out after 60 seconds (specify timeout_sec parameter to override).
@@ -75,37 +131,10 @@ def main():
         uart.write('Hello world!\r\n')
         print("Sent 'Hello world!' to the device.")
 
+        received = ""
         while True:
-            # Now wait up to one minute to receive data from the device.
-            #print('Waiting for next command from the device...')
-            received = uart.read(timeout_sec=60)
-            if received is not None:
-                # Received data, print it out.
-                #print('Received: {0}'.format(received))
-                if (received == 'TERMINATE'):
-                    break
-                if (received.startswith('STRETCH:')):
-                    stretchValue = received[8:]
-                    print 'Stretch value = ', stretchValue
-                elif (received.startswith('ACCEL:')):
-                    accelValue = received[6:]
-                    print 'Accelerometer value = ', accelValue
-                elif (received.startswith('HEART:')):
-                    heartValue = received[6:]
-                    print 'Heart-signal value = ', heartValue
-                    #app.putSamlpe( heartValue )
-                    #queue.put( heartValue )
-                    values = ('HEART:    ', float(heartValue))
-                    packed_data = packer.pack(*values)
-                    client_sock.sendall(packed_data)
-                elif (received.startswith('TEMP:')):
-                    tempValue = received[5:]
-                    print 'Temperature value = ', tempValue
-                else:
-                    print 'Unknown command = ', received
-            else:
-                # Timeout waiting for data, None is returned.
-                print('Received no data!')
+            (msg, received) = getMessage(uart, received)
+            handleMessage(msg)
     finally:
         # Make sure device is disconnected on exit.
         device.disconnect()
