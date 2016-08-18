@@ -10,39 +10,52 @@ import struct
 # Get the BLE provider for the current platform.
 ble = Adafruit_BluefruitLE.get_provider()
 
-######################################################
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_sock.connect(('', 12348))
-######################################################
-
 
 
 
 def handleMessage(msg):
-    packer = struct.Struct('10s f')
     print('Message: {0}'.format(msg))
     if (msg == 'TERMINATE'):
         return False
     if (msg.startswith('STRETCH:')):
         stretchValue = msg[8:]
         print 'Stretch value = ', stretchValue
+        packer1 = struct.Struct('10s f')
+        values = ('STRETCH:  ', float(stretchValue))
+        packed_data = packer1.pack(*values)
+        client_sock.sendall(packed_data)
     elif (msg.startswith('ACCEL:')):
         accelValue = msg[6:]
         print 'Accelerometer value = ', accelValue
+        packer3 = struct.Struct('10s f f f')
+        vals = accelValue.split(",")
+        values = ('ACCEL:    ', float(vals[0]), float(vals[1]), float(vals[2]))
+        packed_data = packer3.pack(*values)
+        client_sock.sendall(packed_data)
     elif (msg.startswith('MAG:')):
         magValue = msg[4:]
         print 'Magentometer value = ', magValue
+        packer3 = struct.Struct('10s f f f')
+        vals = magValue.split(",")
+        values = ('MAG:      ', float(vals[0]), float(vals[1]), float(vals[2]))
+        packed_data = packer3.pack(*values)
+        client_sock.sendall(packed_data)
     elif (msg.startswith('HEART:')):
         heartValue = msg[6:]
         print 'Heart-signal value = ', heartValue
-        #app.putSamlpe( heartValue )
-        #queue.put( heartValue )
+        packer1 = struct.Struct('10s f')
         values = ('HEART:    ', float(heartValue))
-        packed_data = packer.pack(*values)
+        packed_data = packer1.pack(*values)
         client_sock.sendall(packed_data)
     elif (msg.startswith('TEMP:')):
         tempValue = msg[5:]
         print 'Temperature value = ', tempValue
+        packer1 = struct.Struct('10s f')
+        values = ('TEMP:     ', float(tempValue))
+        packed_data = packer1.pack(*values)
+        client_sock.sendall(packed_data)
     else:
         print 'Unknown command = ', msg
     return True
