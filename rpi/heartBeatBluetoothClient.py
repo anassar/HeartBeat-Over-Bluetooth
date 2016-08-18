@@ -1,7 +1,4 @@
 import time
-# Example of interaction with a BLE UART device using a UART service
-# implementation.
-# Author: Tony DiCola
 import Adafruit_BluefruitLE
 from Adafruit_BluefruitLE.services import UART
 
@@ -23,10 +20,9 @@ client_sock.connect(('', 12348))
 
 def handleMessage(msg):
     packer = struct.Struct('10s f')
-    # Received data, print it out.
-    #print('Received: {0}'.format(received))
+    print('Message: {0}'.format(msg))
     if (msg == 'TERMINATE'):
-        break
+        return False
     if (msg.startswith('STRETCH:')):
         stretchValue = msg[8:]
         print 'Stretch value = ', stretchValue
@@ -49,31 +45,32 @@ def handleMessage(msg):
         print 'Temperature value = ', tempValue
     else:
         print 'Unknown command = ', msg
+    return True
 
 
 
 
-def getMessage(uart, received):
+def getMessage(uart, leftover):
     # Now wait up to one minute to receive data from the device.
-    #print('Waiting for next command from the device...')
-    msg = received
+    # print('Waiting for next command from the device...')
+    msg = leftover
     while True:
         received = uart.read(timeout_sec=60)
         if received is not None:
-            index = received.find("#")
+            index = received.find("#") # Look up message termination
             if index < 0:
                 msg = msg + received
             else:
                 if index > 0:
                     msg = msg + received[0:index-1]
-                if len(received) > index:
-                    received = received[index+1:]
+                if len(received) > (index+1): # Termination is not last character
+                    leftover = received[index+1:]
                 else:
-                    received = ""
+                    leftover = ""
         else:
             # Timeout waiting for data, None is returned.
             print('Received no data!')
-    return (msg, received)
+    return (msg, leftover)
 
 
 
@@ -131,10 +128,12 @@ def main():
         uart.write('Hello world!\r\n')
         print("Sent 'Hello world!' to the device.")
 
-        received = ""
+        leftover = ""
         while True:
-            (msg, received) = getMessage(uart, received)
-            handleMessage(msg)
+            msg, leftover = getMessage(uart, leftover)
+            success = handleMessage(msg)
+            if not success:
+                break
     finally:
         # Make sure device is disconnected on exit.
         device.disconnect()
