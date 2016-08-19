@@ -99,10 +99,10 @@ class App:
 
    def redraw(self):
       self.DrawGrid()
-      x1 = self.ORG_X
-      y1 = self.ORG_Y
       with self.lock:
          for k in range(4):
+            x1 = self.ORG_X
+            y1 = self.ORG_Y
             for y in self.data[k]:
                x2 = x1 + self.DELTA_X
                y2 = self.ORG_Y-((y/self.MAX_DATA)*(self.RECT_Y/2))
