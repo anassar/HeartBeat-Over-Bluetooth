@@ -4,16 +4,49 @@ from Adafruit_BluefruitLE.services import UART
 
 import socket
 import struct
-
+import collections
 
 
 # Get the BLE provider for the current platform.
 ble = Adafruit_BluefruitLE.get_provider()
 
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client_sock.connect(('', 12345))
+client_sock.connect(('', 12346))
 
 
+
+WINDOW=200 # Choose this so that only one step can be inside the window
+
+qx = collections.deque()
+qy = collections.deque()
+qz = collections.deque()
+for i in range(1, WINDOW+1):
+    qx.append(0)
+    qy.append(0)
+    qz.append(0)
+
+
+peakFound = False
+StepCount = 0
+
+def detectPeak(q):
+    val0 = None
+    val1 = None
+    val2 = None
+    for val in q:
+        val0 = val1
+        val1 = val2
+        val2 = val
+        if val1 is None:
+            continue
+        if val0 is None:
+            continue
+        if val1 <= val0:
+            continue
+        if val1 <= val2:
+            continue
+        return True
+    return False
 
 def handleMessage(msg):
     packer = struct.Struct('10s f f f')
@@ -32,6 +65,22 @@ def handleMessage(msg):
         values = ('ACCEL:    ', float(vals[0]), float(vals[1]), float(vals[2]))
         packed_data = packer.pack(*values)
         client_sock.sendall(packed_data)
+        qx.append(vals[0])
+        qy.append(vals[1])
+        qz.append(vals[2])
+        qx.popleft()
+        qy.popleft()
+        qz.popleft()
+        peakFoundX = detectPeak(qx)
+        peakFoundY = detectPeak(qy)
+        peakFoundZ = detectPeak(qz)
+        if not peakFound:
+            if peakFoundX or peakFoundY or peakFoundZ: # Peak entry condition
+                StepCount += 1
+                peakFound = True
+                print( "Step Count = ", StepCount )
+        elif not (peakFoundX or peakFoundY or peakFoundZ): # Peak exit condition
+            peakFound = False
     elif (msg.startswith('MAG:')):
         magValue = msg[4:]
         print 'Magentometer value = ', magValue
